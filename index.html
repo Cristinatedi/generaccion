@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenerAcción · Juego digital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --vida:#D5236F; --vida-soft:#F4C0D4; --vida-deep:#8F1449;
+    --camino:#5F4478; --camino-soft:#CDBBDD; --camino-deep:#3B2853;
+    --momento:#3FB39B; --momento-soft:#BCE8DE; --momento-deep:#186A5A;
+    --cream:#F7F0E1; --paper:#FBF6EB; --ink:#3B2B45; --ink-soft:#6E5E7C;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Nunito', system-ui, sans-serif;
+    background:var(--cream); color:var(--ink);
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{font-family:'Baloo 2', 'Nunito', sans-serif;}
+  header{
+    text-align:center; padding:18px 16px 6px;
+  }
+  header h1{
+    font-size:clamp(30px,5vw,44px); font-weight:800; letter-spacing:.5px;
+    background:linear-gradient(90deg,var(--vida),var(--camino) 50%,var(--momento));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  header p{color:var(--ink-soft); font-size:15px;}
+  .wrap{max-width:1150px; margin:0 auto; padding:10px 14px 40px;}
+
+  /* ---------- setup ---------- */
+  #setup{
+    max-width:560px; margin:24px auto; background:var(--paper);
+    border-radius:22px; padding:28px; box-shadow:0 8px 30px rgba(59,43,69,.12);
+  }
+  #setup h2{font-size:24px; margin-bottom:6px;}
+  #setup p{color:var(--ink-soft); margin-bottom:16px; font-size:15px;}
+  .num-row{display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap;}
+  .num-row button{
+    width:52px; height:52px; border-radius:16px; border:2px solid var(--camino-soft);
+    background:#fff; font-family:'Baloo 2'; font-size:22px; font-weight:700; color:var(--camino);
+    cursor:pointer; transition:.15s;
+  }
+  .num-row button.sel{background:var(--camino); color:#fff; border-color:var(--camino);}
+  .pl-row{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .pl-dot{width:26px; height:26px; border-radius:50%; flex:none; border:3px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.25);}
+  .pl-row input{
+    flex:1; padding:11px 14px; border-radius:12px; border:2px solid #e5dcc8;
+    font-size:16px; font-family:inherit; background:#fff;
+  }
+  .btn{
+    display:inline-block; border:none; cursor:pointer; font-family:'Baloo 2';
+    font-weight:700; border-radius:999px; transition:.15s; text-align:center;
+  }
+  .btn:active{transform:scale(.96);}
+  .btn-big{
+    width:100%; padding:15px; font-size:20px; color:#fff; margin-top:14px;
+    background:linear-gradient(90deg,var(--vida),var(--camino));
+  }
+
+  /* ---------- game layout ---------- */
+  #game{display:none;}
+  .game-grid{display:grid; grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr); gap:18px; align-items:start;}
+  @media(max-width:860px){ .game-grid{grid-template-columns:1fr;} }
+  .panel{
+    background:var(--paper); border-radius:22px; padding:18px;
+    box-shadow:0 8px 30px rgba(59,43,69,.10);
+  }
+  #boardPanel{padding:10px;}
+  svg{display:block; width:100%; height:auto;}
+  .cell{transition:.2s;}
+  .loop-hit{cursor:pointer;}
+  .choosable .loop-ring{animation:pulse 1.2s infinite alternate;}
+  @keyframes pulse{from{opacity:.55;} to{opacity:1;}}
+
+  /* side panel */
+  #turnBox{text-align:center; margin-bottom:12px;}
+  #turnName{font-family:'Baloo 2'; font-size:26px; font-weight:800;}
+  #hint{font-size:15px; color:var(--ink-soft); min-height:42px; margin:4px 0 10px;}
+  #wheelWrap{position:relative; width:min(240px,80%); margin:0 auto 14px;}
+  #wheelSvg{transition:transform 3.2s cubic-bezier(.15,.75,.25,1);}
+  #pointer{
+    position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+    width:0; height:0; border-left:14px solid transparent; border-right:14px solid transparent;
+    border-top:24px solid var(--ink); filter:drop-shadow(0 2px 2px rgba(0,0,0,.3)); z-index:2;
+  }
+  #spinBtn{
+    display:block; margin:0 auto; padding:13px 40px; font-size:20px; color:#fff;
+    background:var(--vida);
+  }
+  #spinBtn:disabled{opacity:.4; cursor:not-allowed;}
+  .path-btns{display:none; gap:8px; margin-top:12px; flex-direction:column;}
+  .path-btns button{padding:12px; font-size:17px; color:#fff;}
+
+  /* players progress */
+  #players{margin-top:16px; display:flex; flex-direction:column; gap:8px;}
+  .p-item{
+    display:flex; align-items:center; gap:10px; background:#fff;
+    border-radius:14px; padding:8px 12px; border:2px solid transparent;
+  }
+  .p-item.active{border-color:var(--camino);}
+  .p-item .pl-dot{width:20px; height:20px;}
+  .p-item .name{flex:1; font-weight:700; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .prog{display:flex; gap:5px;}
+  .prog span{width:14px; height:14px; border-radius:50%; border:2px solid #d8cfe0; background:#fff;}
+  .prog span.v.done{background:var(--vida); border-color:var(--vida);}
+  .prog span.c.done{background:var(--camino); border-color:var(--camino);}
+  .prog span.m.done{background:var(--momento); border-color:var(--momento);}
+
+  /* ---------- card modal ---------- */
+  #overlay{
+    position:fixed; inset:0; background:rgba(40,25,50,.55); display:none;
+    align-items:center; justify-content:center; padding:20px; z-index:10;
+  }
+  #card{
+    width:min(360px,92vw); background:var(--paper); border-radius:22px; overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.35); animation:pop .35s cubic-bezier(.2,1.4,.4,1);
+    text-align:center;
+  }
+  @keyframes pop{from{transform:scale(.7); opacity:0;} to{transform:scale(1); opacity:1;}}
+  #cardWave{height:110px;}
+  #cardDeck{font-family:'Baloo 2'; font-weight:800; font-size:15px; letter-spacing:3px; margin-top:-6px;}
+  .heart-div{display:flex; align-items:center; gap:10px; justify-content:center; margin:12px 24px;}
+  .heart-div::before,.heart-div::after{content:""; flex:1; height:2px; background:currentColor; opacity:.4;}
+  #cardText{
+    font-family:'Baloo 2'; font-weight:700; font-size:26px; line-height:1.2;
+    padding:4px 26px;
+  }
+  #cardSub{color:var(--ink-soft); font-size:15px; padding:10px 30px 0;}
+  #challenge{
+    margin:14px 20px 0; padding:10px 14px; border-radius:14px; font-weight:700;
+    font-size:15px; display:none;
+  }
+  #cardBtns{padding:18px 20px 22px;}
+  #doneBtn{padding:12px 44px; font-size:18px; color:#fff; background:var(--ink);}
+
+  /* win */
+  #winBox{display:none; text-align:center; padding:30px;}
+  #winBox h2{font-size:34px; margin-bottom:8px;
+    background:linear-gradient(90deg,var(--vida),var(--camino),var(--momento));
+    -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .confetti{font-size:44px;}
+
+  #log{margin-top:12px; font-size:13px; color:var(--ink-soft); max-height:90px; overflow:auto;}
+  .rules{margin-top:16px; font-size:14px;}
+  .rules summary{font-family:'Baloo 2'; font-weight:700; cursor:pointer; font-size:16px;}
+  .rules li{margin:6px 0 6px 18px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>GenerAcción</h1>
+  <p>Conectamos generaciones · versión digital para jugar juntos</p>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== SETUP ===== -->
+  <section id="setup">
+    <h2>¿Quiénes vais a jugar?</h2>
+    <p>Elegid entre 2 y 6 jugadores. Ideal en parejas mayor + joven.</p>
+    <div class="num-row" id="numRow"></div>
+    <div id="nameRows"></div>
+    <button class="btn btn-big" onclick="startGame()">¡Empezar a jugar!</button>
+    <details class="rules">
+      <summary>Cómo se juega</summary>
+      <ul>
+        <li>Todas las fichas empiezan en el <b>centro</b> del tablero.</li>
+        <li>En tu turno, <b>gira la ruleta</b>: avanzas las casillas que indique.</li>
+        <li>Si estás en el centro, primero <b>elige un camino</b>: VIDA (rosa), CAMINO (morado) o MOMENTO (turquesa).</li>
+        <li>Al caer en una casilla, robas una <b>carta del color</b> de ese camino y respondéis o hacéis el reto en voz alta.</li>
+        <li>Algunas casillas de la ruleta añaden un reto extra: responder <b>cantando ♪</b>, con una <b>mueca 😜</b>, posando para una <b>foto 📷</b> o <b>volver a girar ↻</b>.</li>
+        <li>Al dar la vuelta completa a un camino vuelves al centro y ese camino queda <b>completado</b>.</li>
+        <li>Gana quien complete <b>los tres caminos</b>… aunque aquí ganan todos los que comparten recuerdos.</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- ===== GAME ===== -->
+  <section id="game">
+    <div class="game-grid">
+      <div class="panel" id="boardPanel">
+        <svg id="board" viewBox="0 0 700 660" role="img" aria-label="Tablero GenerAcción con tres caminos"></svg>
+      </div>
+      <div class="panel">
+        <div id="turnBox">
+          <div style="font-size:13px; letter-spacing:2px; color:var(--ink-soft); font-weight:700;">TURNO DE</div>
+          <div id="turnName">—</div>
+          <div id="hint">Gira la ruleta para empezar.</div>
+        </div>
+        <div id="wheelWrap">
+          <div id="pointer"></div>
+          <svg id="wheelSvg" viewBox="0 0 200 200"></svg>
+        </div>
+        <button class="btn" id="spinBtn" onclick="spin()">Girar ruleta</button>
+        <div class="path-btns" id="pathBtns">
+          <button class="btn" style="background:var(--vida)" onclick="choosePath(0)">Camino VIDA</button>
+          <button class="btn" style="background:var(--camino)" onclick="choosePath(1)">Camino CAMINO</button>
+          <button class="btn" style="background:var(--momento)" onclick="choosePath(2)">Camino MOMENTO</button>
+        </div>
+        <div id="players"></div>
+        <div id="log"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== WIN ===== -->
+  <section id="winBox" class="panel">
+    <div class="confetti">🎉🧩🎉</div>
+    <h2 id="winTitle">¡Camino completado!</h2>
+    <p id="winText" style="color:var(--ink-soft); font-size:17px; margin-bottom:18px;"></p>
+    <button class="btn btn-big" style="max-width:320px" onclick="location.reload()">Jugar otra partida</button>
+  </section>
+</div>
+
+<!-- ===== CARD MODAL ===== -->
+<div id="overlay">
+  <div id="card">
+    <svg id="cardWave" viewBox="0 0 360 110" preserveAspectRatio="none" style="width:100%; display:block;">
+      <path id="wavePath" d="M0,0 H360 V60 C300,95 240,45 180,70 C120,95 60,55 0,80 Z"></path>
+    </svg>
+    <div id="cardDeck">VIDA</div>
+    <div class="heart-div" id="heartDiv">♥</div>
+    <div id="cardText">…</div>
+    <div id="cardSub"></div>
+    <div id="challenge"></div>
+    <div id="cardBtns">
+      <button class="btn" id="doneBtn" onclick="closeCard()">¡Hecho!</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= DATA ================= */
+/* Cada camino es una "gota" (petalo) que nace y muere en el centro,
+   reproduciendo el simbolo de Macrosad: gota superior + infinito inferior */
+const LOOPS = [
+  {key:'VIDA',    color:'#D5236F', soft:'#F4C0D4', deep:'#8F1449', tip:{x:328,y:358}, ang:143,  len:262, w:148},
+  {key:'CAMINO',  color:'#5F4478', soft:'#CDBBDD', deep:'#3B2853', tip:{x:350,y:306}, ang:-90,  len:248, w:142},
+  {key:'MOMENTO', color:'#3FB39B', soft:'#BCE8DE', deep:'#186A5A', tip:{x:372,y:358}, ang:37,   len:262, w:148},
+];
+const C = {x:350, y:340};
+const CELLS = 10, CELL_R = 21;
+let loopPts = [[],[],[]], loopLabelPos = [];
+
+const DECKS = [
+  [ /* VIDA — recuerdos */
+    ["¿Cuál es tu comida favorita?","Cuéntanos por qué la recuerdas."],
+    ["¿A qué jugabas de pequeño/a?","Enséñanos cómo se jugaba."],
+    ["¿Qué canción te emociona?","Tararéala si te atreves."],
+    ["¿Quién te enseñó algo importante?","¿Qué te enseñó?"],
+    ["¿Qué olor te lleva a tu infancia?","Describe ese lugar o momento."],
+    ["Cuenta tu primer día de escuela o trabajo","¿Cómo te sentías?"],
+    ["¿Cuál fue un viaje inolvidable?","¿Con quién fuiste?"],
+    ["Cuenta una tradición de tu familia","¿Todavía se celebra?"],
+    ["Habla de un amigo o amiga de la infancia","¿Qué hacíais juntos?"],
+    ["¿Cuál es el mejor consejo que te han dado?","¿Quién te lo dio?"],
+    ["¿Cómo era tu casa de pequeño/a?","Describe tu rincón favorito."],
+    ["¿Qué invento te sorprendió más en tu vida?","¿Cómo cambió tu día a día?"]
+  ],
+  [ /* CAMINO — imaginación y futuro */
+    ["Inventad una nueva profesión","Seguro que hay algo que tú tienes en mente."],
+    ["¿Cómo será la escuela dentro de 50 años?","Imaginadlo entre todos."],
+    ["Inventad un aparato que ayude a las personas","¿Cómo funciona? Ponedle nombre."],
+    ["¿Qué sueño te queda por cumplir?","¿Qué necesitas para lograrlo?"],
+    ["Si pudieras aprender algo nuevo, ¿qué sería?","¿Quién te lo podría enseñar?"],
+    ["Diseñad unas vacaciones juntos","¿A dónde iríais? ¿Qué haríais?"],
+    ["¿Qué le dirías a tu yo del futuro?","Una frase para recordar."],
+    ["Inventad una fiesta nueva para el calendario","¿Cómo se celebra?"],
+    ["Si tuvieras un superpoder para ayudar, ¿cuál sería?","¿A quién ayudarías primero?"],
+    ["¿Cómo mejoraríais vuestro barrio o pueblo?","Proponed una idea juntos."],
+    ["Imaginad la casa del futuro","¿Qué tiene de especial?"],
+    ["¿Qué oficio de antes os gustaría recuperar?","¿Por qué era importante?"]
+  ],
+  [ /* MOMENTO — presente */
+    ["Describe un momento feliz que recuerdes.","Cuéntanos qué pasó, con quién estabas y por qué fue especial para ti."],
+    ["¿Qué te ha hecho reír hoy?","Compártelo con el grupo."],
+    ["Mirad alrededor y decid algo bonito","Algo que veáis ahora mismo."],
+    ["Haceos un cumplido","Uno para cada persona del grupo."],
+    ["¿Qué habéis aprendido hoy?","Aunque sea algo pequeñito."],
+    ["Proponed un plan juntos para esta semana","¡Y comprometeos a hacerlo!"],
+    ["¿Qué canción define tu momento actual?","Ponedle banda sonora al día."],
+    ["¿Qué agradeces hoy?","Tres cosas, grandes o pequeñas."],
+    ["Describe cómo te sientes ahora mismo","Con una palabra o un gesto."],
+    ["Inventad un saludo secreto de equipo","Practicadlo hasta que salga perfecto."],
+    ["¿Qué es lo mejor de jugar juntos?","Decidlo mirándoos a los ojos."],
+    ["Contad un chiste o una anécdota divertida","¡A ver quién ríe primero!"]
+  ]
+];
+
+const WHEEL = [
+  {label:'♪1', steps:1, color:'#D5236F', extra:'Responde la carta ¡cantando! ♪'},
+  {label:'1↻', steps:1, color:'#5F4478', extra:null, again:true},
+  {label:'2',  steps:2, color:'#3FB39B', extra:null},
+  {label:'3',  steps:3, color:'#3FB39B', extra:null},
+  {label:'📷1',steps:1, color:'#5F4478', extra:'Haced una pose de foto de grupo 📷'},
+  {label:'😜1',steps:1, color:'#3FB39B', extra:'Responde poniendo una mueca divertida 😜'},
+  {label:'2',  steps:2, color:'#5F4478', extra:null},
+  {label:'3',  steps:3, color:'#D5236F', extra:null},
+];
+
+const TOKEN_COLORS = ['#E63946','#F4A261','#2A9D8F','#457B9D','#FFD166','#9C6644'];
+
+/* ================= STATE ================= */
+let players = [], turn = 0, numPlayers = 2;
+let pendingSteps = 0, pendingExtra = null, spinAgain = false;
+let wheelRot = 0, busy = false;
+let piles = [[],[],[]];
+
+/* ================= SETUP UI ================= */
+const numRow = document.getElementById('numRow');
+for(let n=2;n<=6;n++){
+  const b=document.createElement('button');
+  b.textContent=n; b.onclick=()=>{numPlayers=n; renderSetup();};
+  numRow.appendChild(b);
+}
+function renderSetup(){
+  [...numRow.children].forEach((b,i)=>b.classList.toggle('sel', i+2===numPlayers));
+  const rows=document.getElementById('nameRows');
+  const prev=[...rows.querySelectorAll('input')].map(i=>i.value);
+  rows.innerHTML='';
+  for(let i=0;i<numPlayers;i++){
+    const d=document.createElement('div'); d.className='pl-row';
+    d.innerHTML=`<span class="pl-dot" style="background:${TOKEN_COLORS[i]}"></span>
+      <input maxlength="14" placeholder="Jugador/a ${i+1}" value="${prev[i]||''}">`;
+    rows.appendChild(d);
+  }
+}
+renderSetup();
+
+function startGame(){
+  const names=[...document.querySelectorAll('#nameRows input')].map((el,i)=>el.value.trim()||`Jugador/a ${i+1}`);
+  players = names.map((n,i)=>({name:n, color:TOKEN_COLORS[i], loop:-1, idx:-1, done:[false,false,false], cards:0}));
+  piles = DECKS.map(d=>shuffle([...d.keys()]));
+  document.getElementById('setup').style.display='none';
+  document.getElementById('game').style.display='block';
+  buildBoard(); buildWheel(); renderPlayers(); updateTurn();
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* ================= BOARD ================= */
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+
+/* Construye el trazado "d" de una gota: punta en tip, cuerpo girado ang grados */
+function dropD(L){
+  const rad=L.ang*Math.PI/180, cos=Math.cos(rad), sin=Math.sin(rad);
+  const T=(x,y)=>{ /* base: punta en origen, cuerpo hacia +x; rotar y trasladar */
+    return {x:L.tip.x + x*cos - y*sin, y:L.tip.y + x*sin + y*cos};
+  };
+  const l=L.len, w=L.w, k=l*0.32;
+  const p0=T(0,0), c1=T(k,-w), c2=T(l,-w), p1=T(l,0), c3=T(l,w), c4=T(k,w);
+  const f=p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+  return `M ${f(p0)} C ${f(c1)} ${f(c2)} ${f(p1)} C ${f(c3)} ${f(c4)} ${f(p0)} Z`;
+}
+
+function buildBoard(){
+  const svg=document.getElementById('board'); svg.innerHTML='';
+  LOOPS.forEach((L,li)=>{
+    const g=el('g',{id:'loopG'+li},svg);
+    const d=dropD(L);
+    /* cinta del camino (forma del logo) */
+    el('path',{d, fill:'none', stroke:L.soft,'stroke-width':56,'stroke-linejoin':'round',class:'loop-ring'},g);
+    el('path',{d, fill:'none', stroke:L.color,'stroke-width':56,'stroke-opacity':.16,'stroke-linejoin':'round'},g);
+    /* trazado invisible para medir posiciones de casillas */
+    const guide=el('path',{d, fill:'none', stroke:'none'},g);
+    const total=guide.getTotalLength();
+    loopPts[li]=[];
+    for(let ci=0;ci<CELLS;ci++){
+      const pt=guide.getPointAtLength(total*(ci+1)/(CELLS+1));
+      loopPts[li].push({x:pt.x,y:pt.y});
+      el('circle',{cx:pt.x,cy:pt.y,r:CELL_R,fill:L.color,stroke:'#fff','stroke-width':3,class:'cell',id:`cell-${li}-${ci}`},g);
+    }
+    /* etiqueta en el extremo de la gota */
+    const rad=L.ang*Math.PI/180;
+    const lp={x:L.tip.x+Math.cos(rad)*L.len*0.58, y:L.tip.y+Math.sin(rad)*L.len*0.58};
+    loopLabelPos[li]=lp;
+    const t=el('text',{x:lp.x,y:lp.y+7,'text-anchor':'middle','font-family':"'Baloo 2'",'font-size':21,'font-weight':800,fill:L.deep},g);
+    t.textContent=L.key;
+    /* zona clicable = la propia cinta */
+    const hit=el('path',{d, fill:'none', stroke:'transparent','stroke-width':70,class:'loop-hit'},g);
+    hit.addEventListener('click',()=>{ if(g.classList.contains('choosable')) choosePath(li); });
+  });
+  /* centro: circulo de salida donde confluyen las tres gotas */
+  el('circle',{cx:C.x,cy:C.y,r:42,fill:'#fff',stroke:'#d9cfe2','stroke-width':4},svg);
+  const ct=el('text',{x:C.x,y:C.y+6,'text-anchor':'middle','font-family':"'Baloo 2'",'font-size':15,'font-weight':800,fill:'#6E5E7C'},svg);
+  ct.textContent='SALIDA';
+  el('g',{id:'tokens'},svg);
+  drawTokens();
+}
+
+function drawTokens(){
+  const g=document.getElementById('tokens'); g.innerHTML='';
+  const groups={};
+  players.forEach((p,i)=>{
+    const key=p.loop+'-'+p.idx;
+    (groups[key]=groups[key]||[]).push(i);
+  });
+  for(const key in groups){
+    const ids=groups[key];
+    ids.forEach((pi,k)=>{
+      const p=players[pi];
+      const base = p.loop<0 ? C : loopPts[p.loop][p.idx];
+      const off = ids.length>1 ? {x:(k%3-1)*13, y:(Math.floor(k/3)-0.5)*13} : {x:0,y:0};
+      el('circle',{cx:base.x+off.x, cy:base.y+off.y, r:9, fill:p.color, stroke:'#fff','stroke-width':2.5},g);
+    });
+  }
+}
+
+/* ================= WHEEL ================= */
+function buildWheel(){
+  const svg=document.getElementById('wheelSvg'); svg.innerHTML='';
+  const cx=100,cy=100,r=96;
+  el('circle',{cx,cy,r:r+3,fill:'#F7F0E1',stroke:'#e0d6c2','stroke-width':2},svg);
+  WHEEL.forEach((s,i)=>{
+    const a0=(-90+i*45-22.5)*Math.PI/180, a1=(-90+i*45+22.5)*Math.PI/180;
+    const p1={x:cx+r*Math.cos(a0),y:cy+r*Math.sin(a0)};
+    const p2={x:cx+r*Math.cos(a1),y:cy+r*Math.sin(a1)};
+    el('path',{d:`M${cx},${cy} L${p1.x},${p1.y} A${r},${r} 0 0 1 ${p2.x},${p2.y} Z`,fill:s.color,stroke:'#F7F0E1','stroke-width':2},svg);
+    const am=(-90+i*45)*Math.PI/180;
+    const tp={x:cx+r*0.66*Math.cos(am), y:cy+r*0.66*Math.sin(am)};
+    const t=el('text',{x:tp.x,y:tp.y+6,'text-anchor':'middle','font-family':"'Baloo 2'",'font-size':19,'font-weight':800,fill:'#fff'},svg);
+    t.textContent=s.label;
+  });
+  el('circle',{cx,cy,r:26,fill:'#fff',stroke:'#e0d6c2','stroke-width':3},svg);
+  const h=el('text',{x:cx,y:cy+7,'text-anchor':'middle','font-size':20},svg);
+  h.textContent='🧩';
+}
+
+function spin(){
+  if(busy) return; busy=true;
+  document.getElementById('spinBtn').disabled=true;
+  const i=Math.floor(Math.random()*WHEEL.length);
+  const target=(360 - i*45) % 360;
+  const cur=((wheelRot%360)+360)%360;
+  wheelRot += 5*360 + ((target - cur + 360)%360) + (Math.random()*24-12);
+  document.getElementById('wheelSvg').style.transform=`rotate(${wheelRot}deg)`;
+  setTimeout(()=>resolveSpin(i), 3300);
+}
+
+function resolveSpin(i){
+  const s=WHEEL[i];
+  pendingSteps=s.steps; pendingExtra=s.extra||null; spinAgain=!!s.again;
+  const p=players[turn];
+  let msg=`Ha salido: avanza ${s.steps}`;
+  if(s.extra) msg+=' + reto extra';
+  if(s.again) msg+=' y vuelve a girar';
+  log(`${p.name} — ${msg}.`);
+  if(p.loop<0){
+    setHint(`${msg}. Elige un camino: toca un aro del tablero o usa los botones.`);
+    showPathChoice(true);
+  } else {
+    setHint(msg+'.');
+    animateMove();
+  }
+}
+
+function showPathChoice(on){
+  document.getElementById('pathBtns').style.display=on?'flex':'none';
+  LOOPS.forEach((L,li)=>{
+    document.getElementById('loopG'+li).classList.toggle('choosable', on);
+  });
+}
+
+function choosePath(li){
+  const p=players[turn];
+  if(p.loop>=0 || pendingSteps<=0) return;
+  showPathChoice(false);
+  p.loop=li; p.idx=-1;
+  animateMove();
+}
+
+function animateMove(){
+  const p=players[turn];
+  let left=pendingSteps; pendingSteps=0;
+  const step=()=>{
+    if(left<=0){ landed(); return; }
+    left--;
+    if(p.idx+1>=CELLS){
+      /* llega al centro: camino completado */
+      if(!p.done[p.loop]){ p.done[p.loop]=true; log(`${p.name} completa el camino ${LOOPS[p.loop].key} 🎉`); }
+      p.loop=-1; p.idx=-1; left=0;
+      drawTokens(); renderPlayers();
+      setTimeout(()=>{ completedArrival(); },350);
+      return;
+    }
+    p.idx++;
+    drawTokens();
+    setTimeout(step, 380);
+  };
+  step();
+}
+
+function completedArrival(){
+  const p=players[turn];
+  if(p.done.every(Boolean)){ win(p); return; }
+  setHint(`${p.name} vuelve al centro. ¡Camino completado!`);
+  endTurn(true);
+}
+
+function landed(){
+  const p=players[turn];
+  drawTokens();
+  openCard(p.loop);
+}
+
+/* ================= CARDS ================= */
+function openCard(li){
+  const L=LOOPS[li];
+  if(piles[li].length===0) piles[li]=shuffle([...DECKS[li].keys()]);
+  const ci=piles[li].pop();
+  const [q,sub]=DECKS[li][ci];
+  document.getElementById('wavePath').setAttribute('fill',L.color);
+  document.getElementById('cardDeck').textContent=L.key;
+  document.getElementById('cardDeck').style.color=L.deep;
+  document.getElementById('heartDiv').style.color=L.color;
+  document.getElementById('cardText').textContent=q;
+  document.getElementById('cardText').style.color=L.deep;
+  document.getElementById('cardSub').textContent=sub;
+  const ch=document.getElementById('challenge');
+  if(pendingExtra){
+    ch.style.display='block'; ch.textContent='Reto extra: '+pendingExtra;
+    ch.style.background=L.soft; ch.style.color=L.deep;
+  } else ch.style.display='none';
+  document.getElementById('doneBtn').style.background=L.color;
+  document.getElementById('overlay').style.display='flex';
+  players[turn].cards++;
+}
+
+function closeCard(){
+  document.getElementById('overlay').style.display='none';
+  pendingExtra=null;
+  renderPlayers();
+  if(spinAgain){
+    spinAgain=false;
+    setHint('¡La ruleta dice que vuelvas a girar!');
+    busy=false; document.getElementById('spinBtn').disabled=false;
+    return;
+  }
+  endTurn(false);
+}
+
+function endTurn(){
+  turn=(turn+1)%players.length;
+  busy=false;
+  document.getElementById('spinBtn').disabled=false;
+  updateTurn();
+}
+
+/* ================= UI ================= */
+function updateTurn(){
+  const p=players[turn];
+  const tn=document.getElementById('turnName');
+  tn.textContent=p.name; tn.style.color=p.color;
+  setHint(p.loop<0 ? 'Gira la ruleta y luego elige camino.' : `Estás en el camino ${LOOPS[p.loop].key}. ¡Gira la ruleta!`);
+  renderPlayers();
+}
+function setHint(t){ document.getElementById('hint').textContent=t; }
+function renderPlayers(){
+  const box=document.getElementById('players'); box.innerHTML='';
+  players.forEach((p,i)=>{
+    const d=document.createElement('div');
+    d.className='p-item'+(i===turn?' active':'');
+    d.innerHTML=`<span class="pl-dot" style="background:${p.color}"></span>
+      <span class="name">${p.name}</span>
+      <span style="font-size:12px;color:var(--ink-soft)">🃏${p.cards}</span>
+      <span class="prog">
+        <span class="v ${p.done[0]?'done':''}"></span>
+        <span class="c ${p.done[1]?'done':''}"></span>
+        <span class="m ${p.done[2]?'done':''}"></span>
+      </span>`;
+    box.appendChild(d);
+  });
+  drawTokens();
+}
+function log(t){
+  const l=document.getElementById('log');
+  l.innerHTML=`<div>· ${t}</div>`+l.innerHTML;
+}
+function win(p){
+  document.getElementById('game').style.display='none';
+  document.getElementById('winTitle').textContent=`¡${p.name} ha unido las tres generaciones!`;
+  document.getElementById('winText').textContent=`Ha completado los caminos VIDA, CAMINO y MOMENTO respondiendo ${p.cards} cartas. ¡Enhorabuena a todo el grupo por compartir tantos recuerdos!`;
+  document.getElementById('winBox').style.display='block';
+}
+</script>
+</body>
+</html>
